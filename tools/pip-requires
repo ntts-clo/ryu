@@ -3,3 +3,5 @@ routes
 webob>=1.0.8
 paramiko
 netaddr
+flask
+gevent-websocket
