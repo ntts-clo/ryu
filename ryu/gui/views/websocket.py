@@ -40,7 +40,8 @@ class WebsocketView(view_base.ViewBase):
                     continue
                 self._recv_message(msg)
             else:
-                self.watcher.stop()
+                if self.watcher:
+                    self.watcher.stop()
                 break
 
         self.ws.close()
