@@ -14,6 +14,7 @@
 # limitations under the License.
 
 import re
+import time
 import unittest
 import xmlrpclib
 from nose.tools import ok_, eq_
@@ -40,6 +41,21 @@ RYU_PORT = '6633'
 MN_HOST = '127.0.0.1'
 MN_PORT = '18000'
 MN_CTL_URL = 'http://%s:%s' % (MN_HOST, MN_PORT)
+
+
+def _rest_request(path, method="GET", body=None):
+    address = '%s:%s' % (REST_HOST, REST_PORT)
+    conn = httplib.HTTPConnection(address)
+    conn.request(method, path, body)
+    res = conn.getresponse()
+    if res.status in (httplib.OK,
+                      httplib.CREATED,
+                      httplib.ACCEPTED,
+                      httplib.NO_CONTENT):
+        return res
+    raise httplib.HTTPException(
+        res, 'code %d reason %s' % (res.status, res.reason),
+        res.getheaders(), res.read())
 
 
 class TestGUI(unittest.TestCase):
@@ -92,7 +108,7 @@ class TestGUI(unittest.TestCase):
         if not self.dialog.body.is_displayed():
             # dialog open
             self.menu.dialog.click()
-            self.utils.wait_for_displayed(self.diaplog.body)
+            self.util.wait_for_displayed(self.dialog.body)
 
         # input address
         self.dialog.host.clear()
@@ -251,19 +267,81 @@ class TestGUI(unittest.TestCase):
         ok_(self.util.wait_for_text(self.topology.body, "Connected"))
 
     def test_topology_discavery(self):
+        util = self.util
+        topo = self.topology
+        mn = self._get_mininet_controller()
+
         self._rest_connect()
 
-        mn = self._get_mininet_controller()
-        # add switches (dpid 1-5)
-        for i in range(5):
-            sw = 's%d' % (i + 1)
-            mn.add_switch(sw)
+        ## add switch (dpid=1)
+        mn.add_switch('s1')
+        ok_(util.wait_for_text(topo.body, topo.get_text_dpid(1)))
 
-        ok_(self.topology.get_switch(1, True))
-        ok_(self.topology.get_switch(2, True))
-        ok_(self.topology.get_switch(3, True))
-        ok_(self.topology.get_switch(4, True))
-        ok_(self.topology.get_switch(5, True))
+        ## add some switches (dpid=2-8)
+        mn.add_switch('s2')
+        mn.add_switch('s3')
+        mn.add_switch('s4')
+
+        # check drawed
+        ok_(util.wait_for_text(topo.body, topo.get_text_dpid(2)))
+        ok_(util.wait_for_text(topo.body, topo.get_text_dpid(3)))
+        ok_(util.wait_for_text(topo.body, topo.get_text_dpid(4)))
+        time.sleep(1)  # wait for switch move animation
+
+        # check positions (diamond shape)
+        d_1_2 = util.get_distance(topo.get_switch(1), topo.get_switch(2))
+        d_2_3 = util.get_distance(topo.get_switch(2), topo.get_switch(3))
+        d_3_4 = util.get_distance(topo.get_switch(3), topo.get_switch(4))
+        d_4_1 = util.get_distance(topo.get_switch(4), topo.get_switch(1))
+        ok_(d_1_2 == d_2_3 == d_3_4 == d_4_1)
+
+        ## selected
+        for sw in topo.switches:
+            sw.click()
+            ok_(topo.is_selected(sw))
+
+        ## draggable
+        default_locations = {}
+        move = 10
+        for sw in topo.switches:
+            dpid = topo.get_dpid(sw)
+            default_locations[dpid] = sw.location
+            xoffset = sw.location['x'] + move
+            yoffset = sw.location['y'] + move
+
+            # move
+            mouse = self.mouse()
+            mouse.drag_and_drop_by_offset(sw, move, move)
+            mouse.perform()
+
+            err = 'dpid=%d draggable error' % (dpid)
+            eq_(sw.location['x'], xoffset, err)
+            eq_(sw.location['y'], yoffset, err)
+
+        ## refresh
+        self.menu.redesign.click()
+        time.sleep(1)  # wait for switch move animation
+        for sw in topo.switches:
+            dpid = topo.get_dpid(sw)
+            default_location = default_locations[dpid]
+            eq_(sw.location, default_location)
+
+        ## del switch (dpid=4)
+        mn.del_switch('s4')
+        ok_(util.wait_for_text_deleted(topo.body, topo.get_text_dpid(4)))
+
+        time.sleep(1)  # wait for switch move animation
+
+        # check position (isosceles triangle)
+        d_1_2 = util.get_distance(topo.get_switch(1), topo.get_switch(2))
+        d_1_3 = util.get_distance(topo.get_switch(1), topo.get_switch(3))
+        eq_(d_1_2, d_1_3)
+
+        ## del all switches
+        mn.stop()
+        ok_(util.wait_for_text_deleted(topo.body, topo.get_text_dpid(1)))
+        ok_(util.wait_for_text_deleted(topo.body, topo.get_text_dpid(2)))
+        ok_(util.wait_for_text_deleted(topo.body, topo.get_text_dpid(3)))
 
 
 if __name__ == "__main__":
