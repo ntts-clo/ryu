@@ -236,40 +236,41 @@ class TestGUI(unittest.TestCase):
 
     def _test_contents_draggable(self, target):
         move = 50
-        xoffset = target.location['x'] + move
-        yoffset = target.location['y'] + move
+        titlebar = target.titlebar
+        xoffset = titlebar.location['x'] + move
+        yoffset = titlebar.location['y'] + move
 
         # move
         mouse = self.mouse()
-        mouse.click(target)
-        mouse.drag_and_drop_by_offset(target, move, move)
+        mouse.click(titlebar)
+        mouse.drag_and_drop_by_offset(titlebar, move, move)
         mouse.perform()
 
         err = '%s draggable error' % (target.name)
-        eq_(target.location['x'], xoffset, err)
-        eq_(target.location['y'], yoffset, err)
+        eq_(titlebar.location['x'], xoffset, err)
+        eq_(titlebar.location['y'], yoffset, err)
 
         # move back
         # content can not drag if overlaps with other contents.
         mouse = self.mouse()
-        mouse.click(target)
-        mouse.drag_and_drop_by_offset(target, -move, -move)
+        mouse.click(titlebar)
+        mouse.drag_and_drop_by_offset(titlebar, -move, -move)
         mouse.perform()
 
     def test_contents_draggable(self):
         self.dialog.close.click()
 
         ## menu
-        self._test_contents_draggable(self.menu.titlebar)
+        self._test_contents_draggable(self.menu)
 
         ## topology
-        self._test_contents_draggable(self.topology.titlebar)
+        self._test_contents_draggable(self.topology)
 
         ## link-list
-        self._test_contents_draggable(self.link_list.titlebar)
+        self._test_contents_draggable(self.link_list)
 
         ## flow-list
-        self._test_contents_draggable(self.flow_list.titlebar)
+        self._test_contents_draggable(self.flow_list)
 
     def _test_contents_resize(self, target):
         self.util.wait_for_displayed(target.body)
