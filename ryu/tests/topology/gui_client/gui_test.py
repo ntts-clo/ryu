@@ -25,6 +25,9 @@ from selenium.webdriver.common.action_chains import ActionChains
 
 import gui_elements
 from ryu.app.client import TopologyClient
+from ryu.ofproto.ether import ETH_TYPE_IP
+from ryu.ofproto.inet import IPPROTO_TCP
+from ryu.ofproto import ofproto_v1_0
 
 
 # GUI app address
@@ -44,6 +47,36 @@ RYU_PORT = '6633'
 MN_HOST = '127.0.0.1'
 MN_PORT = '18000'
 MN_CTL_URL = 'http://%s:%s' % (MN_HOST, MN_PORT)
+
+
+OFP_DEFAULT_PRIORITY = ofproto_v1_0.OFP_DEFAULT_PRIORITY
+
+
+# flow-list sort key
+def _flows_sort_key(a, b):
+    # ascending table_id
+    if a.get('table_id', 0) > b.get('table_id', 0):
+        return 1
+    elif a.get('table_id', 0) < b.get('table_id', 0):
+        return -1
+    # descending priority
+    elif a.get('priority', OFP_DEFAULT_PRIORITY) < \
+        b.get('priority', OFP_DEFAULT_PRIORITY):
+        return 1
+    elif a.get('priority', OFP_DEFAULT_PRIORITY) > \
+        b.get('priority', OFP_DEFAULT_PRIORITY):
+        return -1
+    # ascending duration
+    elif a.get('duration_sec', 0) < b.get('duration_sec', 0):
+        return 1
+    elif a.get('duration_sec', 0) > b.get('duration_sec', 0):
+        return -1
+    elif a.get('duration_nsec', 0) < b.get('duration_nsec', 0):
+        return 1
+    elif a.get('duration_nsec', 0) > b.get('duration_nsec', 0):
+        return -1
+    else:
+        return 0
 
 
 def _rest_request(path, method="GET", body=None):
@@ -427,6 +460,125 @@ class TestGUI(unittest.TestCase):
 
         # check
         self._test_link_discavery(links)
+
+    def _test_flow_discavery(self, flows):
+        flow_list = self.flow_list
+        body = flow_list.body
+        scrollbar = flow_list.scrollbar_y
+        flows.sort(cmp=_flows_sort_key)
+
+        # wait list refreshed
+        flow_list.wait_for_refreshed()
+
+        # check Row count
+        if flows:
+            eq_(len(flow_list.rows), len(flows))
+        else:
+            ok_(not flow_list.rows)
+
+        for i, flow in enumerate(flows):
+            row = flow_list.get_row_text(i)
+
+            # Row is be out of content area?
+            if not row['actions']:
+                # hold scrollbar
+                mouse = self.mouse()
+                mouse.click_and_hold(scrollbar).perform()
+
+                do_scroll = self.mouse().move_by_offset(0, 3)
+                end = body.location['y'] + body.size['height']
+                end -= scrollbar.size['height']
+                while scrollbar.location['y'] < end:
+                    # do scroll
+                    do_scroll.perform()
+                    row = flow_list.get_row_text(i)
+                    if row['actions']:
+                        # loock up
+                        break
+                # scroll to top of content
+                mouse = self.mouse()
+                mouse.move_by_offset(0, -body.size['height'])
+                mouse.release(scrollbar).perform()
+
+            # check text
+            stats = row['stats']
+            rules = row['rules']
+            actions = row['actions']
+
+            # TODO: other attributes
+            priority = flow['priority']
+            tp_src = flow['match']['tp_src']
+            output = flow['actions'][0]['port']
+
+            ok_(re.search(r'priority=%d' % (priority), stats),
+                'i=%d, priority=%d, display=%s' % (i, priority, stats))
+            ok_(re.search(r'tp_src=%d' % (tp_src), rules),
+                'i=%d, tp_src=%d, display=%s' % (i, tp_src, rules))
+            ok_(re.search(r'OUTPUT:%d' % (output), actions),
+                'i=%d, OUTPUT=%d, display=%s' % (i, output, actions))
+
+    def test_flow_discavery(self):
+        mn = self._get_mininet_controller()
+        path = '/stats/flowentry/%s'
+        flows = []
+
+        self._rest_connect()
+
+        # add switche (dpid=1) and select
+        mn.add_switch('s1')
+        self.util.wait_for_text(self.topology.body,
+                                self.topology.get_text_dpid(1))
+        self.topology.get_switch(dpid=1).click()
+
+        ## add flow
+        # stats  : priority=100
+        # rules  : tp_src=99
+        # actions: OUTPUT: 1
+        body = {}
+        body['dpid'] = 1
+        body['priority'] = 100
+        body['match'] = {'dl_type': ETH_TYPE_IP,
+                         'nw_proto': IPPROTO_TCP,
+                         'tp_src': 99}
+        body['actions'] = [{'type': "OUTPUT", "port": 1}]
+        _rest_request(path % ('add'), 'POST', json.dumps(body))
+
+        flows.append(body)
+        self._test_flow_discavery(flows)
+
+        ## add more flow
+        # stats  : priority=100-104
+        # rules  : tp_src=101-105 (=priority + 1)
+        # actions: OUTPUT: 2
+        for priority in [100, 101, 102, 103, 104]:
+            tp_src = priority + 1
+            body = {}
+            body['dpid'] = 1
+            body['priority'] = priority
+            body['match'] = {'dl_type': ETH_TYPE_IP,
+                             'nw_proto': IPPROTO_TCP,
+                             'tp_src': tp_src}
+            body['actions'] = [{'type': "OUTPUT", "port": 2}]
+            _rest_request(path % ('add'), 'POST', json.dumps(body))
+            flows.append(body)
+        self._test_flow_discavery(flows)
+
+        ## mod flow
+        # rules  : tp_src=103, 104 (=priority + 1)
+        # actions: OUTPUT: 2 -> 3
+        for flow in flows:
+            if flow['match']['tp_src'] in [103, 104]:
+                flow['actions'][0]['port'] = 3
+                _rest_request(path % ('modify'), 'POST', json.dumps(flow))
+        self._test_flow_discavery(flows)
+
+        ## del some flow
+        # rules  : tp_src=103, 104 (=priority + 1)
+        for i, flow in enumerate(flows):
+            if flow['match']['tp_src'] in [103, 104]:
+                body = flows.pop(i)
+                _rest_request(path % ('delete'), 'POST', json.dumps(body))
+        self._test_flow_discavery(flows)
 
 
 if __name__ == "__main__":
