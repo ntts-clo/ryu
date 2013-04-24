@@ -17,11 +17,14 @@ import re
 import time
 import unittest
 import xmlrpclib
+import json
+import httplib
+from socket import error as SocketError
 from nose.tools import ok_, eq_
-from nose.plugins.skip import SkipTest
 from selenium.webdriver.common.action_chains import ActionChains
 
 import gui_elements
+from ryu.app.client import TopologyClient
 
 
 # GUI app address
@@ -58,6 +61,28 @@ def _rest_request(path, method="GET", body=None):
         res.getheaders(), res.read())
 
 
+def _rest_get_links():
+    address = '%s:%s' % (REST_HOST, REST_PORT)
+    client = TopologyClient(address)
+    links = []
+    try:
+        links = json.load(client.list_links())
+    except (httplib.HTTPException, SocketError):
+        # REST API is not avaliable.
+        links = False
+    return links
+
+
+def _wait_for_rest_links_deleted():
+    links = _rest_get_links()
+    timeout = 30
+    while links and timeout:
+        time.sleep(1)
+        timeout -= 1
+        links = _rest_get_links()
+    assert not links
+
+
 class TestGUI(unittest.TestCase):
     # called before the TestCase run.
     @classmethod
@@ -88,6 +113,7 @@ class TestGUI(unittest.TestCase):
     def tearDown(self):
         if self._mn is not None:
             self._mn.stop()
+            _wait_for_rest_links_deleted()
 
     # called in to setUpClass().
     @classmethod
@@ -97,8 +123,9 @@ class TestGUI(unittest.TestCase):
         cls.driver = None
 
     def _get_mininet_controller(self):
-        self._mn = xmlrpclib.ServerProxy(MN_CTL_URL, allow_none=True)
-        self._mn.add_controller(RYU_HOST, int(RYU_PORT))
+        if self._mn is None:
+            self._mn = xmlrpclib.ServerProxy(MN_CTL_URL, allow_none=True)
+            self._mn.add_controller(RYU_HOST, int(RYU_PORT))
         return self._mn
 
     def mouse(self):
@@ -342,6 +369,64 @@ class TestGUI(unittest.TestCase):
         ok_(util.wait_for_text_deleted(topo.body, topo.get_text_dpid(1)))
         ok_(util.wait_for_text_deleted(topo.body, topo.get_text_dpid(2)))
         ok_(util.wait_for_text_deleted(topo.body, topo.get_text_dpid(3)))
+
+    def _test_link_discavery(self, links):
+        link_list = self.link_list
+        util = self.util
+
+        # check Row count
+        if links:
+            eq_(len(links), len(link_list.rows))
+        else:
+            ok_(not link_list.rows)
+
+        # check text
+        for link in link_list.rows:
+            ok_(link.name.text in links)
+            eq_(str(links[link.name.text]['port_no']), link.no.text)
+            eq_(links[link.name.text]['peer'], link.peer.text)
+
+        # TODO: check connections on Topology
+
+    def test_link_discavery(self):
+        util = self.util
+        link_list = self.link_list
+        links = {}
+        mn = self._get_mininet_controller()
+
+        self._rest_connect()
+
+        # add some switches (dpid=1-4)
+        mn.add_switch('s1')
+        mn.add_switch('s2')
+        mn.add_switch('s3')
+        mn.add_switch('s4')
+        # s1 selected
+        util.wait_for_text(self.topology.body,
+                           self.topology.get_text_dpid(1))
+        self.topology.get_switch(dpid=1).click()
+
+        ## add links (s1 to s2, s3 and s4)
+        mn.add_link('s1', 's2')
+        mn.add_link('s1', 's3')
+        mn.add_link('s1', 's4')
+
+        links = {}
+        links['s1-eth1'] = {'port_no': 1, 'peer': 's2-eth1'}
+        links['s1-eth2'] = {'port_no': 2, 'peer': 's3-eth1'}
+        links['s1-eth3'] = {'port_no': 3, 'peer': 's4-eth1'}
+        util.wait_for_text(link_list.body, 's4-eth1')
+
+        # check
+        self._test_link_discavery(links)
+
+        ## del link (s1 to s4)
+        mn.del_link('s1', 's4')
+        del links['s1-eth3']
+        util.wait_for_text_deleted(link_list.body, 's4-eth1')
+
+        # check
+        self._test_link_discavery(links)
 
 
 if __name__ == "__main__":
