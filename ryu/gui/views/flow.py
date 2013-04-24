@@ -46,16 +46,8 @@ class FlowView(view_base.ViewBase):
                'port': self.port,
                'dpid': self.dpid,
                'flows': []}
-        try:
-            flows = proxy.get_flows(address, int(self.dpid))
-        except Exception as e:
-            if isinstance(e[0], httplib.HTTPResponse):
-                if e[0].status == httplib.NOT_FOUND:
-                    # switch was deleted
-                    return self.null_response()
-            # Unexpected error
-            raise
 
+        flows = proxy.get_flows(address, int(self.dpid))
         for flow in flows:
             actions = self._to_client_actions(flow.pop('actions'))
             rules = self._to_client_rules(flow.pop('match'))
