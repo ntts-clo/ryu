@@ -15,6 +15,7 @@
 
 import re
 import logging
+import httplib
 
 import view_base
 from models import proxy
@@ -41,12 +42,19 @@ class FlowView(view_base.ViewBase):
 
     def _dump_flows(self):
         address = '%s:%s' % (self.host, self.port)
-        flows = proxy.get_flows(address, int(self.dpid))
-
         res = {'host': self.host,
                'port': self.port,
                'dpid': self.dpid,
                'flows': []}
+        try:
+            flows = proxy.get_flows(address, int(self.dpid))
+        except Exception as e:
+            if isinstance(e[0], httplib.HTTPResponse):
+                if e[0].status == httplib.NOT_FOUND:
+                    # switch was deleted
+                    return self.null_response()
+            # Unexpected error
+            raise
 
         for flow in flows:
             actions = self._to_client_actions(flow.pop('actions'))

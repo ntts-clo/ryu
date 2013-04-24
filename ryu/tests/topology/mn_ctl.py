@@ -32,6 +32,9 @@ class MNCtl(object):
         self._links = {}
 
     def add_controller(self, ip, port):
+        for controller in self.mn.controllers:
+            if controller.ip == ip and controller.port == port:
+                return
         controller = self.mn.addController(
             controller=RemoteController, ip=ip, port=port)
         controller.start()
