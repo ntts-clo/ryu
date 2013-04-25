@@ -25,33 +25,45 @@ class DriverUtil(object):
     def __init__(self):
         self.fail = AssertionError
 
-    def wait_for_displayed(self, el, timeout=30):
+    @staticmethod
+    def wait_for_true(timeout, fnc, *args, **kwargs):
+        res = None
         for i in range(timeout):
-            if el and el.is_displayed():
-                return True
+            res = fnc(*args, **kwargs)
+            if res:
+                break
             time.sleep(1)
-        self.fail("displayed time out")
+        assert res, 'Timeout(%d) %s %s %s' % (timeout, fnc, args, kwargs)
+
+        return res
+
+    def is_displayed(self, el):
+        if el and el.is_displayed():
+            return True
+        return False
+
+    def wait_for_displayed(self, el, timeout=30):
+        return DriverUtil.wait_for_true(timeout, self.is_displayed, el)
+
+    def is_hidden(self, el):
+        return not self.is_displayed(el)
 
     def wait_for_hidden(self, el, timeout=30):
-        for i in range(timeout):
-            if not (el and el.is_displayed()):
-                return True
-            time.sleep(1)
-        self.fail("hidden time out")
+        return DriverUtil.wait_for_true(timeout, self.is_hidden, el)
+
+    def has_text(self, el, text):
+        if el and re.search(r'%s' % text, el.text):
+            return True
+        return False
 
     def wait_for_text(self, el, text, timeout=30):
-        for i in range(timeout):
-            if el and re.search(r'%s' % text, el.text):
-                return True
-            time.sleep(1)
-        self.fail("text time out")
+        return DriverUtil.wait_for_true(timeout, self.has_text, el, text)
+
+    def has_not_text(self, el, text):
+        return not self.has_text(el, text)
 
     def wait_for_text_deleted(self, el, text, timeout=30):
-        for i in range(timeout):
-            if not (el and re.search(r'%s' % text, el.text)):
-                return True
-            time.sleep(1)
-        self.fail("text deleted time out")
+        return DriverUtil.wait_for_true(timeout, self.has_not_text, el, text)
 
     def get_element_center(self, el):
         x = (el.location['x'] + el.size['width']) / 2
@@ -271,26 +283,25 @@ class FlowList(ElementBase):
         return self._get_els(By.CSS_SELECTOR, "#flow-list > "
             "div.content-body > table > tbody > tr.content-table-item")
 
-    def get_row_text(self, row_no):
-        retry = 2
+    def _get_row_text(self, row_no):
         css = '#%s > td > div > span.flow-item-value'
-        while (retry):
-            texts = {}
-            try:
-                # get inner elements
-                id_ = self.rows[row_no].get_attribute('id')
-                inner = self._get_els(By.CSS_SELECTOR, css % (id_))
-                if not len(inner) == 3:
-                    raise StaleElementReferenceException
-                texts['stats'] = inner[0].text
-                texts['rules'] = inner[1].text
-                texts['actions'] = inner[2].text
-                return texts
-            except StaleElementReferenceException:
-                # flow-list refreashed. try again.
-                time.sleep(1)
-                retry -= 1
-        self.fail('flow-list(%s) does not displayed' % row_no)
+        texts = {'stats': None, 'rules': None, 'actions': None}
+        try:
+            # get inner elements
+            id_ = self.rows[row_no].get_attribute('id')
+            inner = self._get_els(By.CSS_SELECTOR, css % (id_))
+            if not len(inner) == 3:
+                raise StaleElementReferenceException
+            texts['stats'] = inner[0].text
+            texts['rules'] = inner[1].text
+            texts['actions'] = inner[2].text
+        except StaleElementReferenceException:
+            # flow-list refreashed.
+            return False
+        return texts
+
+    def get_row_text(self, row_no):
+        return DriverUtil.wait_for_true(2, self._get_row_text, row_no)
 
     def wait_for_refreshed(self, timeout=10):
         old = None

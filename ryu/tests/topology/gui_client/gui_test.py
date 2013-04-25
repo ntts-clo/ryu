@@ -19,12 +19,10 @@ import unittest
 import xmlrpclib
 import json
 import httplib
-from socket import error as SocketError
 from nose.tools import ok_, eq_
 from selenium.webdriver.common.action_chains import ActionChains
 
 import gui_elements
-from ryu.app.client import TopologyClient
 from ryu.ofproto.ether import ETH_TYPE_IP
 from ryu.ofproto.inet import IPPROTO_TCP
 from ryu.ofproto import ofproto_v1_0
@@ -94,26 +92,13 @@ def _rest_request(path, method="GET", body=None):
         res.getheaders(), res.read())
 
 
-def _rest_get_links():
-    address = '%s:%s' % (REST_HOST, REST_PORT)
-    client = TopologyClient(address)
-    links = []
+def _is_rest_link_deleted():
     try:
-        links = json.load(client.list_links())
-    except (httplib.HTTPException, SocketError):
+        links = json.load(_rest_request('/v1.0/topology/links'))
+    except (IOError):
         # REST API is not avaliable.
-        links = False
-    return links
-
-
-def _wait_for_rest_links_deleted():
-    links = _rest_get_links()
-    timeout = 30
-    while links and timeout:
-        time.sleep(1)
-        timeout -= 1
-        links = _rest_get_links()
-    assert not links
+        return True
+    return not links
 
 
 class TestGUI(unittest.TestCase):
@@ -146,7 +131,7 @@ class TestGUI(unittest.TestCase):
     def tearDown(self):
         if self._mn is not None:
             self._mn.stop()
-            _wait_for_rest_links_deleted()
+            self.util.wait_for_true(10, _is_rest_link_deleted)
 
     # called in to setUpClass().
     @classmethod
