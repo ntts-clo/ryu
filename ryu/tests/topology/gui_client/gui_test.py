@@ -327,7 +327,7 @@ class TestGUI(unittest.TestCase):
         self.dialog.launch.click()
         ok_(self.util.wait_for_text(self.topology.body, "Connected"))
 
-    def test_topology_discavery(self):
+    def test_topology_discovery(self):
         util = self.util
         topo = self.topology
         mn = self._get_mininet_controller()
@@ -404,7 +404,7 @@ class TestGUI(unittest.TestCase):
         ok_(util.wait_for_text_deleted(topo.body, topo.get_text_dpid(2)))
         ok_(util.wait_for_text_deleted(topo.body, topo.get_text_dpid(3)))
 
-    def _test_link_discavery(self, links):
+    def _test_link_discovery(self, links):
         link_list = self.link_list
         util = self.util
 
@@ -422,7 +422,7 @@ class TestGUI(unittest.TestCase):
 
         # TODO: check connections on Topology
 
-    def test_link_discavery(self):
+    def test_link_discovery(self):
         util = self.util
         link_list = self.link_list
         links = {}
@@ -452,7 +452,7 @@ class TestGUI(unittest.TestCase):
         util.wait_for_text(link_list.body, 's4-eth1')
 
         # check
-        self._test_link_discavery(links)
+        self._test_link_discovery(links)
 
         ## del link (s1 to s4)
         mn.del_link('s1', 's4')
@@ -460,9 +460,9 @@ class TestGUI(unittest.TestCase):
         util.wait_for_text_deleted(link_list.body, 's4-eth1')
 
         # check
-        self._test_link_discavery(links)
+        self._test_link_discovery(links)
 
-    def _test_flow_discavery(self, flows):
+    def _test_flow_discovery(self, flows):
         flow_list = self.flow_list
         body = flow_list.body
         scrollbar = flow_list.scrollbar_y
@@ -518,7 +518,7 @@ class TestGUI(unittest.TestCase):
             ok_(re.search(r'OUTPUT:%d' % (output), actions),
                 'i=%d, OUTPUT=%d, display=%s' % (i, output, actions))
 
-    def test_flow_discavery(self):
+    def test_flow_discovery(self):
         mn = self._get_mininet_controller()
         path = '/stats/flowentry/%s'
         flows = []
@@ -545,7 +545,7 @@ class TestGUI(unittest.TestCase):
         _rest_request(path % ('add'), 'POST', json.dumps(body))
 
         flows.append(body)
-        self._test_flow_discavery(flows)
+        self._test_flow_discovery(flows)
 
         ## add more flow
         # stats  : priority=100-104
@@ -562,7 +562,7 @@ class TestGUI(unittest.TestCase):
             body['actions'] = [{'type': "OUTPUT", "port": 2}]
             _rest_request(path % ('add'), 'POST', json.dumps(body))
             flows.append(body)
-        self._test_flow_discavery(flows)
+        self._test_flow_discovery(flows)
 
         ## mod flow
         # rules  : tp_src=103, 104 (=priority + 1)
@@ -571,7 +571,7 @@ class TestGUI(unittest.TestCase):
             if flow['match']['tp_src'] in [103, 104]:
                 flow['actions'][0]['port'] = 3
                 _rest_request(path % ('modify'), 'POST', json.dumps(flow))
-        self._test_flow_discavery(flows)
+        self._test_flow_discovery(flows)
 
         ## del some flow
         # rules  : tp_src=103, 104 (=priority + 1)
@@ -579,7 +579,7 @@ class TestGUI(unittest.TestCase):
             if flow['match']['tp_src'] in [103, 104]:
                 body = flows.pop(i)
                 _rest_request(path % ('delete'), 'POST', json.dumps(body))
-        self._test_flow_discavery(flows)
+        self._test_flow_discovery(flows)
 
 
 if __name__ == "__main__":
