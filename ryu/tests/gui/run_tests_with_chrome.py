@@ -17,11 +17,11 @@
 
 import unittest
 
-import gui_test
+from lib import test_gui
 from selenium import webdriver
 
 
-class TestChrome(gui_test.TestGUI):
+class TestChrome(test_gui.TestGUI):
     @classmethod
     def _set_driver(cls):
         # ChromeDriver executable needs to be available in the path.

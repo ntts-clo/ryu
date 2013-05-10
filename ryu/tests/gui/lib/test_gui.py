@@ -22,7 +22,7 @@ import httplib
 from nose.tools import ok_, eq_
 from selenium.webdriver.common.action_chains import ActionChains
 
-import gui_elements
+import elements
 from ryu.ofproto.ether import ETH_TYPE_IP
 from ryu.ofproto.inet import IPPROTO_TCP
 from ryu.ofproto import ofproto_v1_0
@@ -110,12 +110,12 @@ class TestGUI(unittest.TestCase):
         ok_(cls.driver, 'driver dose not setting.')
 
         # elements
-        cls.util = gui_elements.DriverUtil()
-        cls.menu = gui_elements.Menu(cls.driver)
-        cls.dialog = gui_elements.Dialog(cls.driver)
-        cls.topology = gui_elements.Topology(cls.driver)
-        cls.link_list = gui_elements.LinkList(cls.driver)
-        cls.flow_list = gui_elements.FlowList(cls.driver)
+        cls.util = elements.DriverUtil()
+        cls.menu = elements.Menu(cls.driver)
+        cls.dialog = elements.Dialog(cls.driver)
+        cls.topology = elements.Topology(cls.driver)
+        cls.link_list = elements.LinkList(cls.driver)
+        cls.flow_list = elements.FlowList(cls.driver)
 
     # called after the TestCase run.
     @classmethod
