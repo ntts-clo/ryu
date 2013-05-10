@@ -12,6 +12,7 @@ usage() {
   echo "  -P, --no-pep8            Don't run pep8"
   echo "  -l, --pylint             Just run pylint"
   echo "  -i, --integrated         Run integrated test"
+  echo "  -g, --gui                Run GUI test"
   echo "  -v, --verbose            Run verbose pylint analysis"
   echo "  -h, --help               Print this usage message"
   echo ""
@@ -31,6 +32,7 @@ process_option() {
     -P|--no-pep8) no_pep8=1;;
     -l|--pylint) just_pylint=1;;
     -i|--integrated) integrated=1;;
+    -g|--gui) gui=1;;
     -c|--coverage) coverage=1;;
     -v|--verbose) verbose=1;;
     -*) noseopts="$noseopts $1";;
@@ -46,6 +48,7 @@ just_pep8=0
 no_pep8=0
 just_pylint=0
 integrated=0
+gui=0
 force=0
 noseargs=
 wrapper=""
@@ -115,6 +118,31 @@ run_integrated() {
   INTEGRATED_TEST_RUNNER="./ryu/tests/integrated/run_tests_with_ovs12.py"
   sudo PYTHONPATH=. nosetests -s $INTEGRATED_TEST_RUNNER 
 }
+
+run_gui() {
+  echo "Running GUI test ..."
+
+  ./ryu/tests/gui/run_servers.sh &
+  servers_pid=$!
+
+  # wait for servers coming up
+  sleep 10
+
+  ${wrapper} ./ryu/tests/gui/run_tests_with_chrome.py
+  RV1=$?
+  ${wrapper} ./ryu/tests/gui/run_tests_with_firefox.py
+  RV2=$?
+
+  kill $servers_pid
+  wait
+
+  if [ $RV1 -eq 0 -a $RV2 -eq 0 ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
 #NOSETESTS="nosetests $noseopts $noseargs"
 NOSETESTS="python ./ryu/tests/run_tests.py $noseopts $noseargs"
 
@@ -170,6 +198,12 @@ fi
 if [ $integrated -eq 1 ]; then
     run_integrated
     exit
+fi
+
+if [ $gui -eq 1 ]; then
+    run_gui
+    RV=$?
+    exit $RV
 fi
 
 run_tests
