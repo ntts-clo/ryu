@@ -102,8 +102,8 @@ def _is_rest_link_deleted():
 
 
 class TestGUI(unittest.TestCase):
-    WINDOW_SIZE_WIDTH = 910
-    WINDOW_SIZE_HEIGHT = 1200
+    WINDOW_SIZE_WIDTH = 900
+    WINDOW_SIZE_HEIGHT = 900
 
     # called before the TestCase run.
     @classmethod
