@@ -102,12 +102,17 @@ def _is_rest_link_deleted():
 
 
 class TestGUI(unittest.TestCase):
+    WINDOW_SIZE_WIDTH = 900
+    WINDOW_SIZE_HEIGHT = 900
+
     # called before the TestCase run.
     @classmethod
     def setUpClass(cls):
         cls._mn = None
         cls._set_driver()
         ok_(cls.driver, 'driver dose not setting.')
+        cls.driver.set_window_size(cls.WINDOW_SIZE_WIDTH,
+                                   cls.WINDOW_SIZE_HEIGHT)
 
         # elements
         cls.util = elements.DriverUtil()
@@ -131,7 +136,7 @@ class TestGUI(unittest.TestCase):
     def tearDown(self):
         if self._mn is not None:
             self._mn.stop()
-            self.util.wait_for_true(10, _is_rest_link_deleted)
+            self.util.wait_for_true(20, _is_rest_link_deleted)
 
     # called in to setUpClass().
     @classmethod
@@ -212,6 +217,7 @@ class TestGUI(unittest.TestCase):
         ## input-dialog
         self._test_contents_close_open(self.dialog, menu.dialog)
         self.dialog.close.click()
+        time.sleep(1)  # wait for dialog close animation
 
         ## link-list
         self._test_contents_close_open(self.link_list, menu.link_list)
@@ -434,7 +440,8 @@ class TestGUI(unittest.TestCase):
         links['s1-eth1'] = {'port_no': 1, 'peer': 's2-eth1'}
         links['s1-eth2'] = {'port_no': 2, 'peer': 's3-eth1'}
         links['s1-eth3'] = {'port_no': 3, 'peer': 's4-eth1'}
-        util.wait_for_text(link_list.body, 's4-eth1')
+        for link in links.values():
+            util.wait_for_text(link_list.body, link['peer'])
 
         # check
         self._test_link_discovery(links)
