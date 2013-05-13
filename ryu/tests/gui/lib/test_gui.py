@@ -58,11 +58,11 @@ def _flows_sort_key(a, b):
     elif a.get('table_id', 0) < b.get('table_id', 0):
         return -1
     # descending priority
-    elif a.get('priority', OFP_DEFAULT_PRIORITY) < \
-        b.get('priority', OFP_DEFAULT_PRIORITY):
+    elif a.get('priority', OFP_DEFAULT_PRIORITY) \
+            < b.get('priority', OFP_DEFAULT_PRIORITY):
         return 1
-    elif a.get('priority', OFP_DEFAULT_PRIORITY) > \
-        b.get('priority', OFP_DEFAULT_PRIORITY):
+    elif a.get('priority', OFP_DEFAULT_PRIORITY) \
+            > b.get('priority', OFP_DEFAULT_PRIORITY):
         return -1
     # ascending duration
     elif a.get('duration_sec', 0) < b.get('duration_sec', 0):
