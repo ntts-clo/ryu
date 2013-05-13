@@ -439,7 +439,8 @@ class TestGUI(unittest.TestCase):
         links['s1-eth1'] = {'port_no': 1, 'peer': 's2-eth1'}
         links['s1-eth2'] = {'port_no': 2, 'peer': 's3-eth1'}
         links['s1-eth3'] = {'port_no': 3, 'peer': 's4-eth1'}
-        util.wait_for_text(link_list.body, 's4-eth1')
+        for link in links.values():
+            util.wait_for_text(link_list.body, link['peer'])
 
         # check
         self._test_link_discovery(links)
