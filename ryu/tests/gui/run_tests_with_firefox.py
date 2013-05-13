@@ -17,11 +17,11 @@
 
 import unittest
 
-import gui_test
+from lib import test_gui
 from selenium import webdriver
 
 
-class TestFirefox(gui_test.TestGUI):
+class TestFirefox(test_gui.TestGUI):
     @classmethod
     def _set_driver(cls):
         cls.driver = webdriver.Firefox()
