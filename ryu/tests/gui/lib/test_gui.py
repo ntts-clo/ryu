@@ -102,12 +102,17 @@ def _is_rest_link_deleted():
 
 
 class TestGUI(unittest.TestCase):
+    WINDOW_SIZE_WIDTH = 910
+    WINDOW_SIZE_HEIGHT = 1200
+
     # called before the TestCase run.
     @classmethod
     def setUpClass(cls):
         cls._mn = None
         cls._set_driver()
         ok_(cls.driver, 'driver dose not setting.')
+        cls.driver.set_window_size(cls.WINDOW_SIZE_WIDTH,
+                                   cls.WINDOW_SIZE_HEIGHT)
 
         # elements
         cls.util = elements.DriverUtil()
