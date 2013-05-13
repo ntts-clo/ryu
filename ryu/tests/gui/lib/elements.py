@@ -204,6 +204,7 @@ class Topology(ElementBase):
     def get_text_dpid(self, dpid):
         return 'dpid: 0x%x' % (dpid)
 
+
 class LinkList(ElementBase):
     @property
     def body(self):
@@ -223,21 +224,22 @@ class LinkList(ElementBase):
 
     @property
     def scrollbar_x(self):
-        return self._get_el(By.CSS_SELECTOR, "#link-list-body > "
-            "div.ps-scrollbar-x")
+        return self._get_el(By.CSS_SELECTOR,
+                            "#link-list-body > div.ps-scrollbar-x")
 
     @property
     def scrollbar_y(self):
-        return self._get_el(By.CSS_SELECTOR, "#link-list-body > "
-            "div.ps-scrollbar-y")
+        return self._get_el(By.CSS_SELECTOR,
+                            "#link-list-body > div.ps-scrollbar-y")
 
     @property
     def rows(self):
         links = []
         css = '#%s > td.%s'
         # loop rows
-        for row in self._get_els(By.CSS_SELECTOR, "#link-list > "
-            "div.content-body > table > tbody > tr.content-table-item"):
+        for row in self._get_els(By.CSS_SELECTOR,
+                                 "#link-list > div.content-body > " +
+                                 "table > tbody > tr.content-table-item"):
             id_ = row.get_attribute('id')
 
             # set inner elements
@@ -270,18 +272,19 @@ class FlowList(ElementBase):
 
     @property
     def scrollbar_x(self):
-        return self._get_el(By.CSS_SELECTOR, "#flow-list-body > "
-            "div.ps-scrollbar-x")
+        return self._get_el(By.CSS_SELECTOR,
+                            "#flow-list-body > div.ps-scrollbar-x")
 
     @property
     def scrollbar_y(self):
-        return self._get_el(By.CSS_SELECTOR, "#flow-list-body > "
-            "div.ps-scrollbar-y")
+        return self._get_el(By.CSS_SELECTOR,
+                            "#flow-list-body > div.ps-scrollbar-y")
 
     @property
     def rows(self):
-        return self._get_els(By.CSS_SELECTOR, "#flow-list > "
-            "div.content-body > table > tbody > tr.content-table-item")
+        return self._get_els(By.CSS_SELECTOR,
+                             "#flow-list > div.content-body > " +
+                             "table > tbody > tr.content-table-item")
 
     def _get_row_text(self, row_no):
         css = '#%s > td > div > span.flow-item-value'
@@ -317,7 +320,7 @@ class FlowList(ElementBase):
             if (old and not now) or (now and old != now):
                 return True
             time.sleep(1)
-        if (old == None and now == None):
+        if (old is None and now is None):
             # no data
             return False
         self.fail('flow-list does not refreshed.')
