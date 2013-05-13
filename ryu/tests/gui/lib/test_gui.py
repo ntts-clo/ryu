@@ -131,7 +131,7 @@ class TestGUI(unittest.TestCase):
     def tearDown(self):
         if self._mn is not None:
             self._mn.stop()
-            self.util.wait_for_true(10, _is_rest_link_deleted)
+            self.util.wait_for_true(20, _is_rest_link_deleted)
 
     # called in to setUpClass().
     @classmethod
