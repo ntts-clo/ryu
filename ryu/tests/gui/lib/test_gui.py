@@ -217,6 +217,7 @@ class TestGUI(unittest.TestCase):
         ## input-dialog
         self._test_contents_close_open(self.dialog, menu.dialog)
         self.dialog.close.click()
+        time.sleep(1)  # wait for dialog close animation
 
         ## link-list
         self._test_contents_close_open(self.link_list, menu.link_list)
