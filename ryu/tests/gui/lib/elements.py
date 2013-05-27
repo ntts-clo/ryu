@@ -66,8 +66,8 @@ class DriverUtil(object):
         return DriverUtil.wait_for_true(timeout, self.has_not_text, el, text)
 
     def get_element_center(self, el):
-        x = (el.location['x'] + el.size['width']) / 2
-        y = (el.location['y'] + el.size['height']) / 2
+        x = (int(el.location['x']) + el.size['width']) / 2
+        y = (int(el.location['y']) + el.size['height']) / 2
         return {'x': x, 'y': y}
 
     def get_distance(self, el1, el2):
